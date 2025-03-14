@@ -1,0 +1,13 @@
+smolagents
+pandas
+openpyxl
+python-dotenv
+PyPDF2
+openai
+pycryptodome
+transformers
+torch
+sentencepiece
+llama-stack
+huggingface_hub
+protobuf

@@ -1,0 +1,7 @@
+{
+    "pdf_folder": "data/pdfs", 
+    "excel_path": "data/CAD-Form.xlsx",
+    "output_excel_path": "data/CAD-Form_Filled.xlsx",
+    "model_id": "models/llama/Llama3.2-3B"
+  }
+  
