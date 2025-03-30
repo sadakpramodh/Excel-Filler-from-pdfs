@@ -11,3 +11,10 @@ sentencepiece
 llama-stack
 huggingface_hub
 protobuf
+pypdf
+langchain-community
+faiss-cpu
+transformers
+torch
+bitsandbytes
+accelerate
