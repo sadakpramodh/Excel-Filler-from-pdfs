@@ -177,3 +177,13 @@ chromadb
 langchain
 langchain-community
 sentence-transformers
+streamlit
+pandas
+openpyxl
+openai
+langchain
+langchain-community
+sentence-transformers
+chromadb
+faiss-cpu
+pypdf
