@@ -10,6 +10,9 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.document_loaders import PyPDFLoader
 
+# Import agentic components
+from lib.agentic_rag import QueryPlanner, InformationVerifier, AnswerSynthesizer, RAGResponse, RetrievedChunk, VerifiedInformation, SubQuery
+
 # Set page configuration
 st.set_page_config(page_title="Intelligent Data Extractor (CAD Files)​", layout="wide")
 
@@ -60,6 +63,102 @@ def generate_questions_with_client(parameter, client, client_type):
     except Exception as e:
         return f"Failed to generate questions: {str(e)}"
 
+def search_answers(parameter, vectorstore, num_results=3):
+    """Search for answers in the vectorstore based on parameter."""
+    try:
+        results = vectorstore.similarity_search(parameter, k=num_results)
+        return results
+    except Exception as e:
+        st.error(f"Error searching for answers: {str(e)}")
+        return []
+
+# Enhanced functions for agentic RAG
+def process_with_agentic_rag(parameter, vectorstore, client, client_type, use_subqueries=True, top_k=3):
+    """
+    Process a parameter using the agentic RAG approach
+    """
+    try:
+        # Initialize agentic components
+        query_planner = QueryPlanner(client)
+        info_verifier = InformationVerifier(client)
+        answer_synthesizer = AnswerSynthesizer(client)
+        
+        # 1. Generate sub-queries if enabled
+        sub_queries = []
+        if use_subqueries:
+            try:
+                sub_queries = query_planner.decompose_query(parameter)
+            except Exception as e:
+                st.warning(f"Error decomposing query: {str(e)}. Using original parameter directly.")
+                sub_queries = [SubQuery(
+                    text=parameter,
+                    parent_query=parameter,
+                    rationale="Original parameter used directly due to decomposition error"
+                )]
+        else:
+            sub_queries = [SubQuery(
+                text=parameter,
+                parent_query=parameter,
+                rationale="Original parameter used directly (sub-queries disabled)"
+            )]
+        
+        # 2. Retrieve information for each sub-query
+        all_retrieved_chunks = []
+        for sub_query in sub_queries:
+            # Retrieve relevant chunks
+            results = search_answers(sub_query.text, vectorstore, num_results=top_k)
+            
+            # Convert to RetrievedChunk objects
+            chunks = []
+            for i, doc in enumerate(results):
+                chunks.append(RetrievedChunk(
+                    content=doc.page_content,
+                    file_name=doc.metadata.get("source", "Unknown"),
+                    page=doc.metadata.get("page", 0),
+                    paragraph=doc.metadata.get("paragraph", 0),
+                    similarity_score=1.0 - (i * 0.1)  # Simulate decreasing relevance
+                ))
+            
+            all_retrieved_chunks.extend(chunks)
+        
+        # Remove duplicates
+        unique_chunks = []
+        seen_contents = set()
+        for chunk in all_retrieved_chunks:
+            content_hash = hash(chunk.content[:100])
+            if content_hash not in seen_contents:
+                seen_contents.add(content_hash)
+                unique_chunks.append(chunk)
+        
+        # 3. Verify the retrieved information
+        verified_info = []
+        if unique_chunks:
+            verified_info = info_verifier.verify_information(parameter, unique_chunks)
+        
+        # 4. Synthesize answer
+        if not verified_info:
+            # No relevant information found
+            summary = f"No relevant information found for '{parameter}' in the documents."
+            sources = []
+        else:
+            # Use verified information to synthesize an answer
+            response = answer_synthesizer.synthesize_answer(
+                parameter, 
+                verified_info,
+                sub_queries if use_subqueries else None
+            )
+            
+            summary = response.answer
+            sources = [f"{doc.metadata['source']} (Page {doc.metadata['page']}, Paragraph {doc.metadata['paragraph']})" 
+                      for doc in results]
+        
+        return summary, sources
+        
+    except Exception as e:
+        st.error(f"Error in agentic RAG processing: {str(e)}")
+        return f"Error processing parameter '{parameter}': {str(e)}", []
+
+# Standard summarize function (used as fallback)
 def summarize_results_with_client(results, client, client_type):
     """Summarize the search results using the appropriate client type."""
     context = "\n\n".join([doc.page_content for doc in results])
@@ -190,15 +289,6 @@ def process_pdfs(uploaded_pdfs, parameter_list, embedding_model, collection_name
         st.error(traceback.format_exc())
         return None, temp_dir
 
-def search_answers(parameter, vectorstore, num_results=3):
-    """Search for answers in the vectorstore based on parameter."""
-    try:
-        results = vectorstore.similarity_search(parameter, k=num_results)
-        return results
-    except Exception as e:
-        st.error(f"Error searching for answers: {str(e)}")
-        return []
-
 # Main app layout
 st.title("Intelligent Data Extractor (CAD Files)​")
 
@@ -207,6 +297,16 @@ with st.sidebar:
     st.header("Configuration")
     debug_mode = st.checkbox("Debug Mode", value=False, help="Show detailed error information")
     openai_api_key = st.text_input("Enter OpenAI API Key", type="password")
+    
+    # Add advanced options
+    with st.expander("Advanced RAG Options"):
+        use_agentic_rag = st.checkbox("Use Agentic RAG", value=True, 
+                                    help="Enable advanced RAG with query decomposition and verification")
+        use_subqueries = st.checkbox("Use Sub-Queries", value=True, 
+                                    help="Break down parameters into sub-queries for better retrieval")
+        top_k_results = st.slider("Results per Query", min_value=1, max_value=10, value=3,
+                                 help="Number of top results to retrieve per query")
+    
     st.divider()
     
     st.header("Upload Files")
@@ -299,30 +399,39 @@ if excel_file and pdf_files and openai_api_key:
                     questions = "Failed to generate questions."
                     st.text(questions)
             
-            # Search for answers
+            # Search for answers - with agentic RAG if enabled
             with st.spinner(f"Searching for information about '{parameter}'..."):
                 try:
-                    search_results = search_answers(parameter, vectorstore)
-                    
-                    if search_results:
-                        summary, references = summarize_results_with_client(search_results, client, client_type)
-                        
-                        # Find the row index for this parameter
-                        param_indices = results_df[results_df['parameters'] == parameter].index
-                        
-                        if len(param_indices) > 0:
-                            idx = param_indices[0]
-                            results_df.at[idx, 'description'] = summary
-                            results_df.at[idx, 'Reference'] = " | ".join(references)
-                        
-                        st.write("Summary:")
-                        st.write(summary)
-                        
-                        st.write("References:")
-                        for ref in references:
-                            st.write(f"- {ref}")
+                    if use_agentic_rag:
+                        # Use agentic RAG approach
+                        summary, references = process_with_agentic_rag(
+                            parameter, 
+                            vectorstore, 
+                            client, 
+                            client_type, 
+                            use_subqueries=use_subqueries,
+                            top_k=top_k_results
+                        )
                     else:
-                        st.warning(f"No search results found for '{parameter}'")
+                        # Use standard approach
+                        search_results = search_answers(parameter, vectorstore, num_results=top_k_results)
+                        summary, references = summarize_results_with_client(search_results, client, client_type)
+                    
+                    # Find the row index for this parameter
+                    param_indices = results_df[results_df['parameters'] == parameter].index
+                    
+                    if len(param_indices) > 0:
+                        idx = param_indices[0]
+                        results_df.at[idx, 'description'] = summary
+                        results_df.at[idx, 'Reference'] = " | ".join(references)
+                    
+                    st.write("Summary:")
+                    st.write(summary)
+                    
+                    st.write("References:")
+                    for ref in references:
+                        st.write(f"- {ref}")
+                    
                 except Exception as e:
                     st.error(f"Error searching for answers: {str(e)}")
                     if debug_mode:
@@ -379,6 +488,18 @@ else:
        - Search for relevant information for each parameter
        - Summarize the information and add it to the Excel file
        - Allow you to download the completed Excel file
+    """)
+    
+    # Add agentic RAG information
+    st.header("Agentic RAG Features")
+    st.markdown("""
+    This application includes advanced Retrieval-Augmented Generation (RAG) capabilities:
+    
+    - **Query Decomposition**: Breaks down complex parameters into simpler sub-questions
+    - **Information Verification**: Verifies retrieved information for accuracy and relevance
+    - **Answer Synthesis**: Generates more accurate and comprehensive summaries
+    
+    These features can be configured in the "Advanced RAG Options" section in the sidebar.
     """)
     
     # Add requirements info

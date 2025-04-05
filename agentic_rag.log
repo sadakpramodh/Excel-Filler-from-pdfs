@@ -1,0 +1,15 @@
+2025-04-05 11:27:50,616 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cpu
+2025-04-05 11:27:50,616 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: sentence-transformers/all-MiniLM-L6-v2
+2025-04-05 11:32:17,120 - chromadb.telemetry.product.posthog - INFO - Anonymized telemetry enabled. See                     https://docs.trychroma.com/telemetry for more information.
+2025-04-05 11:46:42,034 - agentic_rag - ERROR - Error verifying information: Expecting value: line 1 column 1 (char 0)
+2025-04-05 11:46:56,309 - backoff - INFO - Backing off send_request(...) for 0.3s (requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='us.i.posthog.com', port=443): Read timed out. (read timeout=15))
+2025-04-05 11:47:07,805 - agentic_rag - ERROR - Error verifying information: Expecting value: line 1 column 1 (char 0)
+2025-04-05 11:47:20,253 - agentic_rag - ERROR - Error verifying information: Expecting value: line 1 column 1 (char 0)
+2025-04-05 11:47:33,493 - agentic_rag - ERROR - Error verifying information: Expecting value: line 1 column 1 (char 0)
+2025-04-05 11:48:43,092 - agentic_rag - ERROR - Error decomposing query: Expecting value: line 1 column 1 (char 0)
+2025-04-05 11:51:14,216 - agentic_rag - ERROR - Error decomposing query: Expecting value: line 1 column 1 (char 0)
+2025-04-05 11:52:51,374 - agentic_rag - ERROR - Error decomposing query: Expecting value: line 1 column 1 (char 0)
+2025-04-05 11:53:27,147 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cpu
+2025-04-05 11:53:27,147 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: sentence-transformers/all-MiniLM-L6-v2
+2025-04-05 11:57:59,266 - chromadb.telemetry.product.posthog - INFO - Anonymized telemetry enabled. See                     https://docs.trychroma.com/telemetry for more information.
+2025-04-05 11:58:15,206 - backoff - INFO - Backing off send_request(...) for 0.8s (requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='us.i.posthog.com', port=443): Read timed out. (read timeout=15))
