@@ -5,10 +5,10 @@ import io
 import tempfile
 from pathlib import Path
 import uuid
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.vectorstores import Chroma
-from langchain.document_loaders import PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
+from langchain_community.document_loaders import PyPDFLoader
 
 # Set page configuration
 st.set_page_config(page_title="Intelligent Data Extractor (CAD Files)​", layout="wide")
@@ -200,6 +200,16 @@ if excel_file and pdf_files and openai_api_key:
         column_mapping.update({col: 'description' for col in df.columns if col.lower() == 'description'})
         column_mapping.update({col: 'Reference' for col in df.columns if col.lower() == 'reference'})
         df = df.rename(columns=column_mapping)
+        
+        # Ensure description column is string type to handle text summaries
+        if 'description' in df.columns:
+            df['description'] = df['description'].astype(str)
+        if 'Reference' in df.columns:
+            df['Reference'] = df['Reference'].astype(str)
+        
+        # Ensure description column is string type to handle text summaries
+        if 'description' in df.columns:
+            df['description'] = df['description'].astype(str)
         
         # Extract parameters
         parameters = df['parameters'].dropna().tolist()

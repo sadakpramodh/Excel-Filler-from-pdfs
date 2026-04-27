@@ -13,7 +13,7 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
 # For future agent integration
-from langchain.schema import Document
+from langchain_core.documents import Document
 
 # Set up logging
 logging.basicConfig(

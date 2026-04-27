@@ -6,9 +6,9 @@ import tempfile
 from pathlib import Path
 import uuid
 import traceback
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.document_loaders import PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.document_loaders import PyPDFLoader
 
 # Import agentic components
 from lib.agentic_rag import QueryPlanner, InformationVerifier, AnswerSynthesizer, RAGResponse, RetrievedChunk, VerifiedInformation, SubQuery
@@ -256,7 +256,7 @@ def process_pdfs(uploaded_pdfs, parameter_list, embedding_model, collection_name
         vectorstore = None
         try:
             # Try using Chroma
-            from langchain.vectorstores import Chroma
+            from langchain_community.vectorstores import Chroma
             persist_directory = os.path.join(temp_dir, "chroma_db")
             
             # Ensure the persistence directory exists
@@ -275,7 +275,7 @@ def process_pdfs(uploaded_pdfs, parameter_list, embedding_model, collection_name
             
             # Fall back to FAISS
             try:
-                from langchain.vectorstores import FAISS
+                from langchain_community.vectorstores import FAISS
                 vectorstore = FAISS.from_documents(documents=chunks, embedding=embeddings)
                 st.success("Using FAISS for vector storage.")
             except Exception as faiss_error:
@@ -328,6 +328,9 @@ if excel_file and pdf_files and openai_api_key:
     # Process Excel file
     try:
         df = pd.read_excel(excel_file)
+        # Ensure description column is string type to handle text summaries
+        if 'description' in df.columns:
+            df['description'] = df['description'].astype(str)
     except Exception as e:
         st.error(f"Error reading Excel file: {str(e)}")
         if debug_mode:
@@ -356,6 +359,12 @@ if excel_file and pdf_files and openai_api_key:
         for required_col in required_columns:
             if required_col not in df.columns:
                 df[required_col] = ""
+        
+        # Ensure description column is string type to handle text summaries
+        if 'description' in df.columns:
+            df['description'] = df['description'].astype(str)
+        if 'Reference' in df.columns:
+            df['Reference'] = df['Reference'].astype(str)
         
         # Extract parameters
         parameters = df['parameters'].dropna().tolist()
